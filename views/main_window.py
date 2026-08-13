@@ -24,6 +24,9 @@ from views.schedule_view import ScheduleView
 from views.stats_view import StatsView
 from views.cover_letter_view import CoverLetterView
 from views.timeline_view import TimelineView
+from views.interview_view import InterviewView
+from views.ai_analysis_view import AIAnalysisView
+from views.settings_view import SettingsView
 
 
 class MainWindow(ctk.CTk):
@@ -83,6 +86,12 @@ class MainWindow(ctk.CTk):
             self.current_view = TimelineView(
                 self.content_frame, on_open_activity=self.open_activity_detail
             )
+        elif screen == "interview":
+            self.current_view = InterviewView(self.content_frame)
+        elif screen == "ai_analysis":
+            self.current_view = AIAnalysisView(self.content_frame)
+        elif screen == "settings":
+            self.current_view = SettingsView(self.content_frame)
         else:
             return
 

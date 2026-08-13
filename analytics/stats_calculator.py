@@ -8,6 +8,7 @@ Activity 리스트를 받아서 '숫자로 집계'하는 순수 함수들만 모
 """
 
 from collections import Counter, defaultdict
+from datetime import date as _date
 
 from models.activity import Activity, ActivityStatus
 
@@ -65,3 +66,44 @@ def completion_summary(activities: list[Activity]) -> dict[str, int]:
     return {
         status.value: counter.get(status.value, 0) for status in ActivityStatus
     }
+
+
+def build_summary_text(activities: list[Activity]) -> str:
+    """AI 성장 분석 프롬프트에 넣을 '사람이 읽기 좋은 통계 요약 텍스트'를 만듭니다.
+    AI에게 표/딕셔너리를 그대로 주는 것보다, 문장 형태로 정리해서 주면
+    더 안정적으로 분석 품질이 나옵니다."""
+    if not activities:
+        return "아직 기록된 활동이 없습니다."
+
+    lines = [f"전체 활동 수: {len(activities)}개"]
+
+    year_counts = count_by_year(activities)
+    lines.append("연도별 활동 수: " + ", ".join(f"{y}년 {c}개" for y, c in year_counts.items()))
+
+    type_counts = count_by_type(activities)
+    top_types = list(type_counts.items())[:5]
+    lines.append("활동 종류별 개수(상위 5개): " + ", ".join(f"{t} {c}개" for t, c in top_types))
+
+    summary = completion_summary(activities)
+    lines.append(f"상태별: 완료 {summary.get('완료', 0)}개, 진행중 {summary.get('진행중', 0)}개, 예정 {summary.get('예정', 0)}개")
+
+    # 최근 6개월 활동 수 (증감 추세를 AI가 짚어줄 수 있도록)
+    today = _date.today()
+    recent_6m = [
+        a for a in activities
+        if (today.year - a.date_start.year) * 12 + (today.month - a.date_start.month) <= 6
+        and a.date_start <= today
+    ]
+    lines.append(f"최근 6개월 내 활동 수: {len(recent_6m)}개")
+
+    # 카테고리(자소서 분류)별 개수도 포함 — "협업 경험이 부족합니다" 같은 분석에 필요
+    category_counter: Counter = Counter()
+    for a in activities:
+        for c in a.categories:
+            category_counter[c.name] += 1
+    if category_counter:
+        lines.append(
+            "자기소개서 분류별 개수: " + ", ".join(f"{name} {cnt}개" for name, cnt in category_counter.most_common())
+        )
+
+    return "\n".join(lines)

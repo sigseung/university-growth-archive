@@ -20,6 +20,8 @@ from models.goal import Goal, PeriodType
 from models.schedule import Schedule, ScheduleType
 from models.category import Category, activity_categories, DEFAULT_CATEGORY_NAMES
 from models.growth_link import GrowthLink
+from models.ai_analysis_log import AIAnalysisLog
+from models.interview_qa import InterviewQA
 
 __all__ = [
     "Base",
@@ -39,4 +41,6 @@ __all__ = [
     "activity_categories",
     "DEFAULT_CATEGORY_NAMES",
     "GrowthLink",
+    "AIAnalysisLog",
+    "InterviewQA",
 ]

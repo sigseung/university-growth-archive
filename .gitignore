@@ -1,0 +1,23 @@
+# API 키 등 민감한 로컬 설정 (utils/settings_store.py 참고 — 여기 절대 커밋 금지)
+settings.json
+
+# 데이터베이스 (사용자마다 다른 개인 기록이라 커밋 대상 아님)
+database/uga.db
+
+# 사용자가 업로드한 첨부파일 실물
+assets/attachments/
+
+# 내보내기 결과물 (사용자가 그때그때 생성하는 파일)
+exports/*.pdf
+exports/*.md
+
+# 백업
+backups/*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/

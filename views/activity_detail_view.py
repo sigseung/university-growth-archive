@@ -322,6 +322,12 @@ class ActivityDetailView(ctk.CTkFrame):
         add_frame = ctk.CTkFrame(parent, fg_color="transparent")
         add_frame.pack(fill="x", pady=(8, 0))
 
+        ctk.CTkButton(
+            add_frame, text="🤖 AI로 초안 채우기", width=140, height=26,
+            fg_color="transparent", border_width=1,
+            command=self._handle_ai_fill_reflection,
+        ).pack(anchor="w", pady=(0, 6))
+
         self.learned_box = ctk.CTkTextbox(add_frame, height=50)
         self.learned_box.pack(fill="x")
         self.learned_box.configure(border_width=1)
@@ -331,6 +337,31 @@ class ActivityDetailView(ctk.CTkFrame):
         ctk.CTkButton(
             add_frame, text="+ 회고 추가", command=self._handle_add_reflection
         ).pack(anchor="e", pady=(8, 0))
+
+    def _handle_ai_fill_reflection(self):
+        from services.ai_content_service import AIContentService
+        from ai.ai_client import AIConfigError, AIRequestError
+
+        with get_session() as session:
+            activity = ActivityService(session).get_activity(self.activity_id)
+            if activity is None:
+                return
+            try:
+                draft = AIContentService(session).generate_reflection(activity)
+            except AIConfigError as e:
+                messagebox.showwarning("설정 필요", str(e), parent=self)
+                return
+            except AIRequestError as e:
+                messagebox.showerror("생성 실패", str(e), parent=self)
+                return
+            except ValueError as e:
+                messagebox.showwarning("생성 불가", str(e), parent=self)
+                return
+
+        self.learned_box.delete("1.0", "end")
+        self.learned_box.insert("1.0", draft["learned"])
+        self.next_action_box.delete("1.0", "end")
+        self.next_action_box.insert("1.0", draft["next_action"])
 
     def _handle_add_reflection(self):
         learned = self.learned_box.get("1.0", "end").strip()

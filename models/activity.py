@@ -19,6 +19,9 @@ V4에서 추가된 것:
     - STAR 4필드 (Situation/Task/Action/Result) — 자기소개서/면접 답변의 기본 골격
     - outgoing_links / incoming_links (GrowthLink와의 관계. "이 활동이 어떤 다음
       행동으로 이어졌는가" / "이 활동은 어떤 활동 때문에 시작됐는가")
+
+V5에서 추가된 것:
+    - interview_qas (InterviewQA와의 1:N 관계. AI가 생성한 면접 예상질문 저장)
 """
 
 import enum
@@ -124,6 +127,9 @@ class Activity(Base):
     incoming_links: Mapped[list["GrowthLink"]] = relationship(
         foreign_keys="GrowthLink.to_activity_id",
         back_populates="to_activity", cascade="all, delete-orphan",
+    )
+    interview_qas: Mapped[list["InterviewQA"]] = relationship(
+        back_populates="activity", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

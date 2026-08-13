@@ -80,6 +80,12 @@ class ActivityFormView(ctk.CTkToplevel):
             scroll, text="STAR (선택 — 자기소개서/면접 답변용)", anchor="w",
             font=ctk.CTkFont(weight="bold"),
         ).pack(fill="x", pady=(14, 4))
+        if self.is_edit_mode:
+            ctk.CTkButton(
+                scroll, text="🤖 AI로 STAR 초안 채우기", width=170, height=26,
+                fg_color="transparent", border_width=1,
+                command=self._handle_ai_fill_star,
+            ).pack(anchor="w", pady=(0, 6))
         self.star_situation_entry = self._add_textbox(scroll, "Situation (상황)")
         self.star_task_entry = self._add_textbox(scroll, "Task (과제/목표)")
         self.star_action_entry = self._add_textbox(scroll, "Action (행동)")
@@ -147,6 +153,32 @@ class ActivityFormView(ctk.CTkToplevel):
             self.star_action_entry.insert("1.0", a.star_action)
         if a.star_result:
             self.star_result_entry.insert("1.0", a.star_result)
+
+    def _handle_ai_fill_star(self):
+        from services.ai_content_service import AIContentService
+        from ai.ai_client import AIConfigError, AIRequestError
+
+        with get_session() as session:
+            try:
+                draft = AIContentService(session).generate_star(self.activity)
+            except AIConfigError as e:
+                messagebox.showwarning("설정 필요", str(e), parent=self)
+                return
+            except AIRequestError as e:
+                messagebox.showerror("생성 실패", str(e), parent=self)
+                return
+            except ValueError as e:
+                messagebox.showwarning("생성 불가", str(e), parent=self)
+                return
+
+        self.star_situation_entry.delete("1.0", "end")
+        self.star_situation_entry.insert("1.0", draft["situation"])
+        self.star_task_entry.delete("1.0", "end")
+        self.star_task_entry.insert("1.0", draft["task"])
+        self.star_action_entry.delete("1.0", "end")
+        self.star_action_entry.insert("1.0", draft["action"])
+        self.star_result_entry.delete("1.0", "end")
+        self.star_result_entry.insert("1.0", draft["result"])
 
     def _handle_save(self):
         title = self.title_entry.get().strip()

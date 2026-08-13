@@ -7,10 +7,8 @@ views/dashboard_view.py
     - 다가오는 일정 (Activity 중 date_start가 미래인 것)
     - 최근 활동 목록
 
-나머지(성장 그래프, AI 분석, 목표 진행률 등)는 각 기능이 실제로
-구현되는 V3~V5 시점에 이 파일을 확장합니다. 지금 빈 자리표시자를
-넣지 않는 이유: 동작하지 않는 UI를 미리 만들어두면 오히려
-"이거 왜 안 눌리지?" 하는 혼란만 생기기 때문입니다.
+V1: 오늘 날짜 / 통계 카드 / 다가오는 일정 / 최근 활동
+V5: 최근 AI 분석 카드 추가
 """
 
 from datetime import date
@@ -19,6 +17,7 @@ import customtkinter as ctk
 
 from database.db_session import get_session
 from services.activity_service import ActivityService
+from services.ai_analysis_service import AIAnalysisService
 from utils.date_utils import format_date_kr, days_until
 from views.components.card import StatCard, ActivityRow
 
@@ -61,6 +60,18 @@ class DashboardView(ctk.CTkFrame):
         self.recent_box = self._make_section(self.body_frame, "🕒 최근 활동")
         self.recent_box.grid(row=0, column=1, padx=(8, 0), sticky="nsew")
 
+        # 최근 AI 분석 카드
+        self.ai_box = ctk.CTkFrame(self, corner_radius=12)
+        self.ai_box.pack(fill="x", padx=24, pady=(0, 20))
+        ctk.CTkLabel(
+            self.ai_box, text="🤖 최근 AI 분석", font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(anchor="w", padx=16, pady=(14, 6))
+        self.ai_content_label = ctk.CTkLabel(
+            self.ai_box, text="", anchor="w", justify="left", wraplength=1000,
+            text_color=("gray50", "gray60"),
+        )
+        self.ai_content_label.pack(anchor="w", padx=16, pady=(0, 14), fill="x")
+
     def _make_section(self, parent, title: str) -> ctk.CTkFrame:
         frame = ctk.CTkFrame(parent, corner_radius=12)
         header = ctk.CTkLabel(frame, text=title, font=ctk.CTkFont(size=14, weight="bold"))
@@ -87,6 +98,18 @@ class DashboardView(ctk.CTkFrame):
 
             recent = service.list_activities()[:8]
             self._fill_activity_list(self.recent_box.content, recent, empty_text="아직 기록된 활동이 없습니다.")
+
+            latest_log = AIAnalysisService(session).get_latest_log()
+            if latest_log:
+                preview = latest_log.content.strip().splitlines()[0] if latest_log.content.strip() else ""
+                self.ai_content_label.configure(
+                    text=preview or "(내용 없음)", text_color=("gray20", "gray90")
+                )
+            else:
+                self.ai_content_label.configure(
+                    text="아직 생성된 AI 분석이 없습니다. 사이드바의 'AI 분석' 화면에서 만들어보세요.",
+                    text_color=("gray50", "gray60"),
+                )
 
     def _fill_activity_list(self, container, activities, empty_text: str):
         for widget in container.winfo_children():
