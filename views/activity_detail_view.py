@@ -3,7 +3,7 @@ views/activity_detail_view.py
 
 활동 하나의 상세 정보를 보여주는 화면입니다.
 V1: 기본정보 + Reflection / V2: 첨부파일 업로드 섹션 추가 / V3: 자기소개서 분류 표시 + PDF/MD Export 버튼 추가.
-(STAR, 연결된 다음 행동(GrowthLink) 탭은 V4에서 이 파일에 탭을 추가하는 방식으로 확장 예정)
+V4: STAR 섹션 + 성장 연결(GrowthLink) 섹션 추가.
 """
 
 import customtkinter as ctk
@@ -14,6 +14,7 @@ from models.reflection import Reflection
 from services.activity_service import ActivityService
 from services.attachment_service import AttachmentService
 from services.export_service import ExportService
+from services.growth_link_service import GrowthLinkService
 from utils.date_utils import format_date_kr
 from utils.file_utils import open_file_with_default_app
 
@@ -107,6 +108,8 @@ class ActivityDetailView(ctk.CTkFrame):
             self._section(self.scroll, "새롭게 알게 된 직무", activity.new_roles)
 
             self._attachment_section(self.scroll, service)
+            self._star_section(self.scroll, activity)
+            self._growth_link_section(self.scroll, service, activity)
             self._reflection_section(self.scroll, activity)
 
     def _section(self, parent, title: str, content: str | None):
@@ -183,6 +186,116 @@ class ActivityDetailView(ctk.CTkFrame):
             AttachmentService(session).delete_attachment(attachment_id)
         self.refresh()
 
+    def _star_section(self, parent, activity):
+        """STAR(Situation/Task/Action/Result). 값이 하나라도 있으면 보여주고,
+        수정은 activity_form_view의 'STAR' 섹션에서 합니다 (한 활동에 STAR는
+        Reflection과 달리 '한 세트'만 존재하므로, 회고처럼 여러 개 추가하는 UI 대신
+        폼에서 통째로 수정하는 방식이 더 자연스럽습니다)."""
+        star_fields = [
+            ("Situation (상황)", activity.star_situation),
+            ("Task (과제/목표)", activity.star_task),
+            ("Action (행동)", activity.star_action),
+            ("Result (결과)", activity.star_result),
+        ]
+        if not any(v for _, v in star_fields):
+            return
+
+        ctk.CTkLabel(
+            parent, text="STAR", font=ctk.CTkFont(size=14, weight="bold"), anchor="w"
+        ).pack(fill="x", pady=(20, 8))
+
+        box = ctk.CTkFrame(parent, corner_radius=10)
+        box.pack(fill="x", pady=4)
+        for label, value in star_fields:
+            if not value:
+                continue
+            ctk.CTkLabel(
+                box, text=label, font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=("gray30", "gray80"), anchor="w",
+            ).pack(fill="x", padx=12, pady=(10, 0))
+            ctk.CTkLabel(
+                box, text=value, anchor="w", justify="left", wraplength=680
+            ).pack(fill="x", padx=12, pady=(0, 8))
+
+    def _growth_link_section(self, parent, activity_service: ActivityService, activity):
+        """성장 연결(GrowthLink). "이 활동을 계기로 시작한 다음 행동"들을 보여주고,
+        새 연결을 추가할 수 있습니다. 설계 문서의 핵심 기능인
+        '활동 간 인과관계'가 실제로 저장/조회되는 부분입니다."""
+        ctk.CTkLabel(
+            parent, text="🔗 연결된 다음 행동", font=ctk.CTkFont(size=14, weight="bold"), anchor="w"
+        ).pack(fill="x", pady=(20, 8))
+
+        if not activity.outgoing_links:
+            ctk.CTkLabel(
+                parent, text="아직 연결된 다음 행동이 없습니다.",
+                text_color=("gray50", "gray60"), anchor="w",
+            ).pack(fill="x", pady=(0, 8))
+        else:
+            for link in activity.outgoing_links:
+                row = ctk.CTkFrame(parent, corner_radius=10)
+                row.pack(fill="x", pady=3)
+                text = f"→ {link.to_activity.title}"
+                if link.link_reason:
+                    text += f"  ({link.link_reason})"
+                ctk.CTkLabel(row, text=text, anchor="w", wraplength=600).pack(
+                    side="left", fill="x", expand=True, padx=12, pady=8
+                )
+                ctk.CTkButton(
+                    row, text="연결 해제", width=70, height=26, fg_color="transparent", border_width=1,
+                    command=lambda lid=link.id: self._handle_unlink(lid),
+                ).pack(side="right", padx=8)
+
+        # 새 연결 추가 UI: 자기 자신을 제외한 다른 활동들 중에서 선택
+        other_activities = [
+            a for a in activity_service.list_activities() if a.id != self.activity_id
+        ]
+        if not other_activities:
+            return
+
+        add_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        add_frame.pack(fill="x", pady=(8, 0))
+
+        self._link_target_choices = other_activities
+        target_labels = [f"{a.title} ({a.date_start})" for a in other_activities]
+        self.link_target_combo = ctk.CTkComboBox(add_frame, values=target_labels)
+        self.link_target_combo.set(target_labels[0])
+        self.link_target_combo.pack(fill="x")
+
+        self.link_reason_entry = ctk.CTkEntry(
+            add_frame, placeholder_text="이 활동이 다음 행동으로 이어진 이유 (선택)"
+        )
+        self.link_reason_entry.pack(fill="x", pady=(6, 0))
+
+        ctk.CTkButton(
+            add_frame, text="+ 연결 추가", command=self._handle_add_link
+        ).pack(anchor="e", pady=(8, 0))
+
+    def _handle_add_link(self):
+        selected_label = self.link_target_combo.get()
+        target = None
+        for a, label in zip(self._link_target_choices, [f"{a.title} ({a.date_start})" for a in self._link_target_choices]):
+            if label == selected_label:
+                target = a
+                break
+        if target is None:
+            return
+
+        reason = self.link_reason_entry.get().strip() or None
+        with get_session() as session:
+            try:
+                GrowthLinkService(session).link_activities(self.activity_id, target.id, reason)
+            except ValueError as e:
+                messagebox.showwarning("연결 실패", str(e), parent=self)
+                return
+        self.refresh()
+
+    def _handle_unlink(self, link_id: int):
+        if not messagebox.askyesno("연결 해제", "이 성장 연결을 삭제하시겠습니까?"):
+            return
+        with get_session() as session:
+            GrowthLinkService(session).unlink(link_id)
+        self.refresh()
+
     def _reflection_section(self, parent, activity):
         ctk.CTkLabel(
             parent, text="Reflection (회고)", font=ctk.CTkFont(size=14, weight="bold"), anchor="w"
@@ -254,7 +367,7 @@ class ActivityDetailView(ctk.CTkFrame):
             # 세션이 닫히기 전에 필요한 관계(tags/categories/reflections)를
             # 미리 접근해서 로딩해둡니다. (세션이 닫힌 뒤 접근하면
             # SQLAlchemy가 DetachedInstanceError를 던지기 때문)
-            _ = (activity.tags, activity.categories, activity.reflections)
+            _ = (activity.tags, activity.categories, activity.reflections, activity.outgoing_links)
 
             try:
                 if mode == "pdf":

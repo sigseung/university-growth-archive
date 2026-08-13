@@ -9,16 +9,16 @@ main_window.py 가 가지고 있습니다. (Sidebar가 다른 View들을 직접 
 
 import customtkinter as ctk
 
-# V1~V3에서 구현하는 메뉴만 활성화하고, 나머지는 로드맵에 따라 V4~V5에서 추가합니다.
+# V1~V4에서 구현하는 메뉴만 활성화하고, 나머지는 로드맵에 따라 V5에서 추가합니다.
 MENU_ITEMS = [
     ("dashboard", "🏠  대시보드"),
     ("activities", "📋  활동"),
     ("goals", "🎯  목표"),
     ("schedule", "📅  일정"),
+    ("timeline", "🕒  타임라인"),
     ("stats", "📊  통계"),
     ("cover_letter", "📝  자소서"),
-    # 아래는 V4 이후 순차 활성화 예정 (로드맵 참고)
-    # ("timeline", "🕒  타임라인"),
+    # 아래는 V5 이후 순차 활성화 예정 (로드맵 참고)
     # ("interview", "🎤  면접"),
     # ("ai_analysis", "🤖  AI 분석"),
 ]

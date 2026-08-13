@@ -15,10 +15,10 @@ V2에서 추가된 것:
 V3에서 추가된 것:
     - categories (Category와의 N:M 연결. "이 활동은 자소서 어떤 항목에 쓸 수 있는가")
 
-아직 넣지 않은 필드 (V4에서 추가 예정, 설계 문서에 이미 정리되어 있음):
-    - GrowthLink(성장 연결), STAR 4필드
-    → 이유: 기능이 실제로 구현되는 시점에 맞춰 컬럼을 추가해야
-       "왜 이 컬럼이 있는지"가 코드에서도 명확하게 유지됩니다.
+V4에서 추가된 것:
+    - STAR 4필드 (Situation/Task/Action/Result) — 자기소개서/면접 답변의 기본 골격
+    - outgoing_links / incoming_links (GrowthLink와의 관계. "이 활동이 어떤 다음
+      행동으로 이어졌는가" / "이 활동은 어떤 활동 때문에 시작됐는가")
 """
 
 import enum
@@ -83,6 +83,12 @@ class Activity(Base):
     new_roles: Mapped[str | None] = mapped_column(Text, nullable=True)
     related_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
+    # --- STAR (V4): 자기소개서/면접 답변의 기본 골격 ---
+    star_situation: Mapped[str | None] = mapped_column(Text, nullable=True)  # 상황
+    star_task: Mapped[str | None] = mapped_column(Text, nullable=True)       # 과제/목표
+    star_action: Mapped[str | None] = mapped_column(Text, nullable=True)     # 행동
+    star_result: Mapped[str | None] = mapped_column(Text, nullable=True)     # 결과
+
     # --- 목표 연결 (V2) ---
     # 이 활동이 어떤 목표를 위해 한 것인지 (선택 사항)
     goal_id: Mapped[int | None] = mapped_column(ForeignKey("goals.id"), nullable=True)
@@ -108,6 +114,17 @@ class Activity(Base):
         secondary="activity_categories", back_populates="activities"
     )
     goal: Mapped["Goal | None"] = relationship(back_populates="activities")
+
+    # GrowthLink (V4): 이 활동에서 '출발하는' 연결과, 이 활동으로 '들어오는' 연결.
+    # cascade="all, delete-orphan": 활동을 삭제하면 그 활동이 걸려있던 연결선도 함께 삭제
+    outgoing_links: Mapped[list["GrowthLink"]] = relationship(
+        foreign_keys="GrowthLink.from_activity_id",
+        back_populates="from_activity", cascade="all, delete-orphan",
+    )
+    incoming_links: Mapped[list["GrowthLink"]] = relationship(
+        foreign_keys="GrowthLink.to_activity_id",
+        back_populates="to_activity", cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Activity id={self.id} title={self.title!r} type={self.activity_type}>"

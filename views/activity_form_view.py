@@ -26,7 +26,7 @@ class ActivityFormView(ctk.CTkToplevel):
         self.is_edit_mode = activity is not None
 
         self.title("활동 수정" if self.is_edit_mode else "새 활동 추가")
-        self.geometry("480x720")
+        self.geometry("500x820")
         self.resizable(False, False)
         self.grab_set()  # 모달로 만들기: 이 창이 닫힐 때까지 뒤 창 조작 불가
 
@@ -74,6 +74,16 @@ class ActivityFormView(ctk.CTkToplevel):
             chk = ctk.CTkCheckBox(category_grid, text=cat.name, variable=var)
             chk.grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 10), pady=3)
             self.category_vars[cat.id] = var
+
+        # STAR (V4): 접었다 펼 수 있는 선택 섹션
+        ctk.CTkLabel(
+            scroll, text="STAR (선택 — 자기소개서/면접 답변용)", anchor="w",
+            font=ctk.CTkFont(weight="bold"),
+        ).pack(fill="x", pady=(14, 4))
+        self.star_situation_entry = self._add_textbox(scroll, "Situation (상황)")
+        self.star_task_entry = self._add_textbox(scroll, "Task (과제/목표)")
+        self.star_action_entry = self._add_textbox(scroll, "Action (행동)")
+        self.star_result_entry = self._add_textbox(scroll, "Result (결과)")
 
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=(0, 16))
@@ -129,6 +139,14 @@ class ActivityFormView(ctk.CTkToplevel):
         for cat in a.categories:
             if cat.id in self.category_vars:
                 self.category_vars[cat.id].set(True)
+        if a.star_situation:
+            self.star_situation_entry.insert("1.0", a.star_situation)
+        if a.star_task:
+            self.star_task_entry.insert("1.0", a.star_task)
+        if a.star_action:
+            self.star_action_entry.insert("1.0", a.star_action)
+        if a.star_result:
+            self.star_result_entry.insert("1.0", a.star_result)
 
     def _handle_save(self):
         title = self.title_entry.get().strip()
@@ -170,6 +188,10 @@ class ActivityFormView(ctk.CTkToplevel):
             content=self.content_entry.get("1.0", "end").strip() or None,
             tag_names=tag_names,
             category_names=category_names,
+            star_situation=self.star_situation_entry.get("1.0", "end").strip() or None,
+            star_task=self.star_task_entry.get("1.0", "end").strip() or None,
+            star_action=self.star_action_entry.get("1.0", "end").strip() or None,
+            star_result=self.star_result_entry.get("1.0", "end").strip() or None,
         )
 
         try:

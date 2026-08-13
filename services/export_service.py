@@ -91,6 +91,28 @@ class ExportService:
             if content:
                 lines += [f"## {title}", "", content, ""]
 
+        star_fields = [
+            ("Situation", activity.star_situation),
+            ("Task", activity.star_task),
+            ("Action", activity.star_action),
+            ("Result", activity.star_result),
+        ]
+        if any(v for _, v in star_fields):
+            lines.append("## STAR")
+            lines.append("")
+            for label, value in star_fields:
+                if value:
+                    lines.append(f"- **{label}**: {value}")
+            lines.append("")
+
+        if activity.outgoing_links:
+            lines.append("## 연결된 다음 행동")
+            lines.append("")
+            for link in activity.outgoing_links:
+                suffix = f" — {link.link_reason}" if link.link_reason else ""
+                lines.append(f"- → {link.to_activity.title}{suffix}")
+            lines.append("")
+
         if activity.reflections:
             lines.append("## Reflection")
             lines.append("")
@@ -177,6 +199,24 @@ class ExportService:
                     Paragraph(heading, heading_style),
                     Paragraph(content.replace("\n", "<br/>"), body_style),
                 ]
+
+        star_fields = [
+            ("Situation", activity.star_situation),
+            ("Task", activity.star_task),
+            ("Action", activity.star_action),
+            ("Result", activity.star_result),
+        ]
+        if any(v for _, v in star_fields):
+            elements.append(Paragraph("STAR", heading_style))
+            for label, value in star_fields:
+                if value:
+                    elements.append(Paragraph(f"<b>{label}</b> · {value}", body_style))
+
+        if activity.outgoing_links:
+            elements.append(Paragraph("연결된 다음 행동", heading_style))
+            for link in activity.outgoing_links:
+                suffix = f" — {link.link_reason}" if link.link_reason else ""
+                elements.append(Paragraph(f"→ {link.to_activity.title}{suffix}", body_style))
 
         if activity.reflections:
             elements.append(Paragraph("Reflection", heading_style))

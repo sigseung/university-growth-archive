@@ -19,6 +19,7 @@ from models.tag import Tag, activity_tags
 from models.goal import Goal, PeriodType
 from models.schedule import Schedule, ScheduleType
 from models.category import Category, activity_categories, DEFAULT_CATEGORY_NAMES
+from models.growth_link import GrowthLink
 
 __all__ = [
     "Base",
@@ -37,4 +38,5 @@ __all__ = [
     "Category",
     "activity_categories",
     "DEFAULT_CATEGORY_NAMES",
+    "GrowthLink",
 ]
