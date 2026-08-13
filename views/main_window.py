@@ -21,6 +21,8 @@ from views.activity_detail_view import ActivityDetailView
 from views.activity_form_view import ActivityFormView
 from views.goal_view import GoalView
 from views.schedule_view import ScheduleView
+from views.stats_view import StatsView
+from views.cover_letter_view import CoverLetterView
 
 
 class MainWindow(ctk.CTk):
@@ -70,6 +72,12 @@ class MainWindow(ctk.CTk):
             self.current_view = GoalView(self.content_frame)
         elif screen == "schedule":
             self.current_view = ScheduleView(self.content_frame)
+        elif screen == "stats":
+            self.current_view = StatsView(self.content_frame)
+        elif screen == "cover_letter":
+            self.current_view = CoverLetterView(
+                self.content_frame, on_open_activity=self.open_activity_detail
+            )
         else:
             return
 

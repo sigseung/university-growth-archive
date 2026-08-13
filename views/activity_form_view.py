@@ -14,6 +14,7 @@ from database.db_session import get_session
 from models.activity import ActivityType, ActivityStatus
 from services.activity_service import ActivityService
 from services.goal_service import GoalService
+from services.category_service import CategoryService
 from utils.date_utils import parse_date_short, format_date_short
 
 
@@ -25,7 +26,7 @@ class ActivityFormView(ctk.CTkToplevel):
         self.is_edit_mode = activity is not None
 
         self.title("활동 수정" if self.is_edit_mode else "새 활동 추가")
-        self.geometry("480x620")
+        self.geometry("480x720")
         self.resizable(False, False)
         self.grab_set()  # 모달로 만들기: 이 창이 닫힐 때까지 뒤 창 조작 불가
 
@@ -58,6 +59,21 @@ class ActivityFormView(ctk.CTkToplevel):
             self._goal_choices = GoalService(session).list_goals()
         goal_labels = ["없음"] + [f"{g.title} ({g.period_label})" for g in self._goal_choices]
         self.goal_combo = self._add_combo(scroll, "연결할 목표 (선택)", goal_labels)
+
+        # 자기소개서 분류 (V3): 체크박스 다중 선택
+        with get_session() as session:
+            self._category_choices = CategoryService(session).list_categories()
+        ctk.CTkLabel(scroll, text="자기소개서 분류 (다중 선택 가능)", anchor="w").pack(
+            fill="x", pady=(8, 4)
+        )
+        category_grid = ctk.CTkFrame(scroll, fg_color="transparent")
+        category_grid.pack(fill="x", pady=(0, 8))
+        self.category_vars: dict[int, ctk.BooleanVar] = {}
+        for i, cat in enumerate(self._category_choices):
+            var = ctk.BooleanVar(value=False)
+            chk = ctk.CTkCheckBox(category_grid, text=cat.name, variable=var)
+            chk.grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 10), pady=3)
+            self.category_vars[cat.id] = var
 
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=(0, 16))
@@ -110,6 +126,9 @@ class ActivityFormView(ctk.CTkToplevel):
                 if g.id == a.goal_id:
                     self.goal_combo.set(f"{g.title} ({g.period_label})")
                     break
+        for cat in a.categories:
+            if cat.id in self.category_vars:
+                self.category_vars[cat.id].set(True)
 
     def _handle_save(self):
         title = self.title_entry.get().strip()
@@ -126,6 +145,9 @@ class ActivityFormView(ctk.CTkToplevel):
             return
 
         tag_names = [t.strip() for t in self.tags_entry.get().split(",") if t.strip()]
+        category_names = [
+            cat.name for cat in self._category_choices if self.category_vars[cat.id].get()
+        ]
 
         goal_selection = self.goal_combo.get()
         goal_id = None
@@ -147,6 +169,7 @@ class ActivityFormView(ctk.CTkToplevel):
             purpose=self.purpose_entry.get("1.0", "end").strip() or None,
             content=self.content_entry.get("1.0", "end").strip() or None,
             tag_names=tag_names,
+            category_names=category_names,
         )
 
         try:

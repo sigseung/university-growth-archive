@@ -29,11 +29,23 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 def init_db() -> None:
     """앱 최초 실행 시 한 번 호출해서 모든 테이블을 생성합니다.
-    이미 테이블이 있으면 아무 일도 하지 않습니다 (create_all의 기본 동작)."""
+    이미 테이블이 있으면 아무 일도 하지 않습니다 (create_all의 기본 동작).
+    테이블 생성 후에는 자기소개서 분류 기본 9종(Category)도 없으면 심어둡니다."""
     # models 패키지를 import해야 모든 모델 클래스가 Base.metadata에 등록됩니다.
     import models  # noqa: F401  (등록 목적의 import이므로 사용하지 않아도 필요함)
 
     Base.metadata.create_all(bind=engine)
+
+    # 순환 import를 피하기 위해 함수 안에서 import합니다.
+    # (services -> repositories -> models -> ... 로 이어지는 의존 체인이
+    #  database 모듈을 다시 참조하지 않도록 이 함수 내부로 한정)
+    from services.category_service import CategoryService
+
+    session = SessionLocal()
+    try:
+        CategoryService(session).ensure_default_categories()
+    finally:
+        session.close()
 
 
 @contextmanager

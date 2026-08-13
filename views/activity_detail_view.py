@@ -2,7 +2,7 @@
 views/activity_detail_view.py
 
 활동 하나의 상세 정보를 보여주는 화면입니다.
-V1: 기본정보 + Reflection / V2: 첨부파일 업로드 섹션 추가.
+V1: 기본정보 + Reflection / V2: 첨부파일 업로드 섹션 추가 / V3: 자기소개서 분류 표시 + PDF/MD Export 버튼 추가.
 (STAR, 연결된 다음 행동(GrowthLink) 탭은 V4에서 이 파일에 탭을 추가하는 방식으로 확장 예정)
 """
 
@@ -13,6 +13,7 @@ from database.db_session import get_session
 from models.reflection import Reflection
 from services.activity_service import ActivityService
 from services.attachment_service import AttachmentService
+from services.export_service import ExportService
 from utils.date_utils import format_date_kr
 from utils.file_utils import open_file_with_default_app
 
@@ -43,6 +44,15 @@ class ActivityDetailView(ctk.CTkFrame):
             command=self._handle_delete,
         )
         self.delete_btn.pack(side="right")
+
+        ctk.CTkButton(
+            top_bar, text="Markdown", width=90, fg_color="transparent", border_width=1,
+            command=self._handle_export_markdown,
+        ).pack(side="right", padx=(0, 6))
+        ctk.CTkButton(
+            top_bar, text="PDF", width=70, fg_color="transparent", border_width=1,
+            command=self._handle_export_pdf,
+        ).pack(side="right", padx=(0, 6))
 
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, padx=24, pady=(0, 20))
@@ -75,10 +85,19 @@ class ActivityDetailView(ctk.CTkFrame):
 
             if activity.tags:
                 tag_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
-                tag_frame.pack(fill="x", pady=(0, 16), anchor="w")
+                tag_frame.pack(fill="x", pady=(0, 8), anchor="w")
                 for tag in activity.tags:
                     ctk.CTkLabel(
                         tag_frame, text=f"#{tag.name}", fg_color=("gray85", "gray25"),
+                        corner_radius=8, padx=8,
+                    ).pack(side="left", padx=(0, 6))
+
+            if activity.categories:
+                category_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
+                category_frame.pack(fill="x", pady=(0, 16), anchor="w")
+                for cat in activity.categories:
+                    ctk.CTkLabel(
+                        category_frame, text=cat.name, fg_color="#3B82F6", text_color="white",
                         corner_radius=8, padx=8,
                     ).pack(side="left", padx=(0, 6))
 
@@ -220,6 +239,35 @@ class ActivityDetailView(ctk.CTkFrame):
     def _handle_edit(self):
         if self.on_edit:
             self.on_edit(self.activity_id)
+
+    def _handle_export_pdf(self):
+        self._export(mode="pdf")
+
+    def _handle_export_markdown(self):
+        self._export(mode="markdown")
+
+    def _export(self, mode: str):
+        with get_session() as session:
+            activity = ActivityService(session).get_activity(self.activity_id)
+            if activity is None:
+                return
+            # 세션이 닫히기 전에 필요한 관계(tags/categories/reflections)를
+            # 미리 접근해서 로딩해둡니다. (세션이 닫힌 뒤 접근하면
+            # SQLAlchemy가 DetachedInstanceError를 던지기 때문)
+            _ = (activity.tags, activity.categories, activity.reflections)
+
+            try:
+                if mode == "pdf":
+                    path = ExportService().export_to_pdf(activity)
+                else:
+                    path = ExportService().export_to_markdown(activity)
+            except Exception as e:
+                messagebox.showerror("내보내기 실패", str(e), parent=self)
+                return
+
+        messagebox.showinfo(
+            "내보내기 완료", f"파일로 저장했습니다:\n{path}", parent=self
+        )
 
     def _handle_delete(self):
         if not messagebox.askyesno("삭제 확인", "이 활동을 삭제하시겠습니까? 되돌릴 수 없습니다."):

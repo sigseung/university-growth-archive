@@ -12,8 +12,11 @@ V1 범위:
 V2에서 추가된 것:
     - goal_id (Goal과의 N:1 연결. "이 활동은 어떤 목표를 위한 것인가")
 
-아직 넣지 않은 필드 (V3~V4에서 추가 예정, 설계 문서에 이미 정리되어 있음):
-    - Category 연결(자소서 분류), GrowthLink(성장 연결), STAR 4필드
+V3에서 추가된 것:
+    - categories (Category와의 N:M 연결. "이 활동은 자소서 어떤 항목에 쓸 수 있는가")
+
+아직 넣지 않은 필드 (V4에서 추가 예정, 설계 문서에 이미 정리되어 있음):
+    - GrowthLink(성장 연결), STAR 4필드
     → 이유: 기능이 실제로 구현되는 시점에 맞춰 컬럼을 추가해야
        "왜 이 컬럼이 있는지"가 코드에서도 명확하게 유지됩니다.
 """
@@ -100,6 +103,9 @@ class Activity(Base):
     )
     tags: Mapped[list["Tag"]] = relationship(
         secondary="activity_tags", back_populates="activities"
+    )
+    categories: Mapped[list["Category"]] = relationship(
+        secondary="activity_categories", back_populates="activities"
     )
     goal: Mapped["Goal | None"] = relationship(back_populates="activities")
 

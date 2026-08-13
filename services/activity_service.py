@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from models.activity import Activity, ActivityStatus, ActivityType
 from models.tag import Tag
+from models.category import Category
 from repositories.activity_repository import ActivityRepository
 
 
@@ -40,6 +41,7 @@ class ActivityService:
         purpose: str | None = None,
         content: str | None = None,
         tag_names: list[str] | None = None,
+        category_names: list[str] | None = None,
         goal_id: int | None = None,
     ) -> Activity:
         """새 활동을 만듭니다. 제목과 최소 정보만 있으면 저장 가능하게 해서
@@ -66,6 +68,8 @@ class ActivityService:
 
         if tag_names:
             activity.tags = self._resolve_tags(tag_names)
+        if category_names:
+            activity.categories = self._resolve_categories(category_names)
 
         return self.repo.create(activity)
 
@@ -75,12 +79,15 @@ class ActivityService:
             raise ValueError(f"id={activity_id} 활동을 찾을 수 없습니다.")
 
         tag_names = fields.pop("tag_names", None)
+        category_names = fields.pop("category_names", None)
         for key, value in fields.items():
             if hasattr(activity, key):
                 setattr(activity, key, value)
 
         if tag_names is not None:
             activity.tags = self._resolve_tags(tag_names)
+        if category_names is not None:
+            activity.categories = self._resolve_categories(category_names)
 
         return self.repo.update(activity)
 
@@ -120,6 +127,13 @@ class ActivityService:
             if a.date_start.year == today.year and a.date_start.month == today.month
         ]
 
+    def get_activities_by_category(self, category_id: int) -> list[Activity]:
+        """자기소개서 관리 화면에서 카테고리 버튼 클릭 시 사용."""
+        return [
+            a for a in self.list_activities()
+            if any(c.id == category_id for c in a.categories)
+        ]
+
     # ---------- 내부 헬퍼 ----------
 
     def _resolve_tags(self, tag_names: list[str]) -> list[Tag]:
@@ -133,3 +147,16 @@ class ActivityService:
             existing = self.session.query(Tag).filter_by(name=name).first()
             tags.append(existing if existing else Tag(name=name))
         return tags
+
+    def _resolve_categories(self, category_names: list[str]) -> list[Category]:
+        """카테고리 이름 목록을 Category 객체 리스트로 변환.
+        기본 9종은 앱 시작 시 이미 심어져 있으므로 대부분 '재사용'되고,
+        사용자가 새 이름을 입력하면 그 자리에서 새로 생성됩니다."""
+        categories = []
+        for raw_name in category_names:
+            name = raw_name.strip()
+            if not name:
+                continue
+            existing = self.session.query(Category).filter_by(name=name).first()
+            categories.append(existing if existing else Category(name=name))
+        return categories
