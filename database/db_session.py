@@ -18,13 +18,31 @@ from sqlalchemy.orm import sessionmaker, Session
 from config import DATABASE_URL
 from models.base import Base
 
-# echo=False: SQL 쿼리 로그를 끔. 디버깅하고 싶을 때 True로 바꾸면
-# 실행되는 모든 SQL문이 콘솔에 출력됩니다.
-engine = create_engine(DATABASE_URL, echo=False)
 
-# SessionLocal: 세션을 찍어내는 '공장(factory)'.
-# 매번 SessionLocal()을 호출할 때마다 새로운 세션이 만들어집니다.
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+def _build_engine_and_sessionmaker(database_url: str):
+    # echo=False: SQL 쿼리 로그를 끔. 디버깅하고 싶을 때 True로 바꾸면
+    # 실행되는 모든 SQL문이 콘솔에 출력됩니다.
+    new_engine = create_engine(database_url, echo=False)
+    new_session_local = sessionmaker(bind=new_engine, autoflush=False, autocommit=False)
+    return new_engine, new_session_local
+
+
+engine, SessionLocal = _build_engine_and_sessionmaker(DATABASE_URL)
+
+
+def configure(database_url: str) -> None:
+    """engine/SessionLocal을 다른 DB로 다시 연결합니다.
+
+    두 가지 경우에 씁니다:
+    1) 테스트 코드 (tests/conftest.py)에서 실제 사용자 DB 대신
+       임시 SQLite 파일을 쓰도록 바꿔치기할 때.
+    2) 백업 복원 후, 새로 열리는 세션이 복원된 파일을 바라보게 할 때.
+
+    기존 engine이 연결을 물고 있으면 파일 교체가 막힐 수 있어서,
+    새로 만들기 전에 기존 연결을 정리(dispose)합니다."""
+    global engine, SessionLocal
+    engine.dispose()
+    engine, SessionLocal = _build_engine_and_sessionmaker(database_url)
 
 
 def init_db() -> None:

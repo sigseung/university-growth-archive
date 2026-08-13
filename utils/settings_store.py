@@ -12,7 +12,6 @@ API 키처럼 "사용자마다 다르고, 코드에 하드코딩하면 안 되�
 """
 
 import json
-from pathlib import Path
 
 from config import BASE_DIR
 

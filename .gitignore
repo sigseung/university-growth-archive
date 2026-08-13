@@ -21,3 +21,10 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+
+# PyInstaller 빌드 산출물 (uga.spec으로 재생성 가능, 용량이 커서 커밋 대상 아님)
+build/
+dist/
+
+# pytest 캐시
+.pytest_cache/

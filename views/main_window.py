@@ -14,6 +14,7 @@ import customtkinter as ctk
 
 from config import APP_NAME
 from database.db_session import init_db
+from services.backup_service import auto_backup_if_needed
 from views.sidebar import Sidebar
 from views.dashboard_view import DashboardView
 from views.activity_list_view import ActivityListView
@@ -34,6 +35,7 @@ class MainWindow(ctk.CTk):
         super().__init__()
 
         init_db()  # 최초 실행 시 테이블이 없으면 생성
+        auto_backup_if_needed()  # 오늘 백업이 없으면 조용히 하나 만들어둠
 
         self.title(APP_NAME)
         self.geometry("1200x760")

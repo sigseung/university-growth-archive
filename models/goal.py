@@ -12,7 +12,7 @@ Goal(목표)은 "이번 학기에 공모전 3개 참가하기" 같은 목표를 
 """
 
 import enum
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import String, Text, Integer, Boolean, DateTime, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship

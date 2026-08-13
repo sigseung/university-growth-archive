@@ -1,15 +1,18 @@
 """
 views/settings_view.py
 
-OpenAI API 키를 입력/저장하는 화면입니다.
+OpenAI API 키 관리 + 데이터 백업/복원을 다루는 화면입니다.
 AI 기능(성장 분석, 면접 준비, 자소서 문장 생성 등)을 쓰려면
-여기서 먼저 키를 등록해야 합니다.
+여기서 먼저 키를 등록해야 하고, V6부터는 백업 관리도 이 화면에서 합니다.
 """
 
 import customtkinter as ctk
 from tkinter import messagebox
 
 from utils.settings_store import get_openai_api_key, set_openai_api_key
+from utils.file_utils import open_file_with_default_app
+from services import backup_service
+from config import BACKUPS_DIR
 
 
 class SettingsView(ctk.CTkFrame):
@@ -21,13 +24,21 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkLabel(
             self, text="설정", font=ctk.CTkFont(size=20, weight="bold"), anchor="w"
         ).pack(fill="x", padx=24, pady=(20, 4))
-        ctk.CTkLabel(
-            self, text="AI 기능(성장 분석 / 면접 준비 / 자소서 문장 생성)을 쓰려면 OpenAI API 키가 필요합니다.",
-            font=ctk.CTkFont(size=12), text_color=("gray40", "gray70"), anchor="w",
-        ).pack(fill="x", padx=24, pady=(0, 20))
 
-        box = ctk.CTkFrame(self, corner_radius=12)
-        box.pack(fill="x", padx=24)
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scroll.pack(fill="both", expand=True, padx=24, pady=(0, 20))
+
+        self._build_api_key_section(self.scroll)
+        self._build_backup_section(self.scroll)
+
+    def _build_api_key_section(self, parent):
+        ctk.CTkLabel(
+            parent, text="AI 기능(성장 분석 / 면접 준비 / 자소서 문장 생성)을 쓰려면 OpenAI API 키가 필요합니다.",
+            font=ctk.CTkFont(size=12), text_color=("gray40", "gray70"), anchor="w",
+        ).pack(fill="x", pady=(0, 12))
+
+        box = ctk.CTkFrame(parent, corner_radius=12)
+        box.pack(fill="x", pady=(0, 24))
 
         ctk.CTkLabel(box, text="OpenAI API 키", anchor="w").pack(fill="x", padx=20, pady=(20, 4))
         self.api_key_entry = ctk.CTkEntry(box, show="•", placeholder_text="sk-...")
@@ -57,6 +68,86 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkButton(box, text="저장", command=self._handle_save).pack(
             anchor="e", padx=20, pady=(0, 20)
         )
+
+    def _build_backup_section(self, parent):
+        header_row = ctk.CTkFrame(parent, fg_color="transparent")
+        header_row.pack(fill="x", pady=(0, 8))
+        ctk.CTkLabel(
+            header_row, text="데이터 백업", font=ctk.CTkFont(size=15, weight="bold"), anchor="w"
+        ).pack(side="left")
+        ctk.CTkButton(
+            header_row, text="지금 백업", width=100, height=28, command=self._handle_backup_now,
+        ).pack(side="right")
+        ctk.CTkButton(
+            header_row, text="백업 폴더 열기", width=110, height=28, fg_color="transparent",
+            border_width=1, command=self._handle_open_backup_folder,
+        ).pack(side="right", padx=(0, 8))
+
+        ctk.CTkLabel(
+            parent, text="앱을 실행할 때마다 하루 한 번 자동으로 백업됩니다 (최근 14개까지 보관). "
+            "복원하면 지금 상태도 안전하게 별도로 백업해둔 뒤 되돌립니다.",
+            font=ctk.CTkFont(size=12), text_color=("gray40", "gray70"),
+            anchor="w", justify="left", wraplength=700,
+        ).pack(fill="x", pady=(0, 12))
+
+        self.backup_list_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        self.backup_list_frame.pack(fill="x")
+        self._render_backup_list()
+
+    def _render_backup_list(self):
+        for widget in self.backup_list_frame.winfo_children():
+            widget.destroy()
+
+        backups = backup_service.list_backups()
+        if not backups:
+            ctk.CTkLabel(
+                self.backup_list_frame, text="아직 백업이 없습니다.",
+                text_color=("gray50", "gray60"), anchor="w",
+            ).pack(fill="x", pady=8)
+            return
+
+        for backup_path in backups:
+            row = ctk.CTkFrame(self.backup_list_frame, corner_radius=8)
+            row.pack(fill="x", pady=3)
+            ctk.CTkLabel(
+                row, text=backup_service.format_backup_label(backup_path), anchor="w",
+            ).pack(side="left", padx=12, pady=8)
+            ctk.CTkButton(
+                row, text="복원", width=60, height=26, fg_color="transparent", border_width=1,
+                command=lambda p=backup_path: self._handle_restore(p),
+            ).pack(side="right", padx=8)
+
+    def _handle_backup_now(self):
+        try:
+            backup_service.create_backup()
+        except FileNotFoundError as e:
+            messagebox.showwarning("백업 실패", str(e), parent=self)
+            return
+        messagebox.showinfo("백업 완료", "지금 상태를 백업했습니다.", parent=self)
+        self._render_backup_list()
+
+    def _handle_open_backup_folder(self):
+        try:
+            open_file_with_default_app(str(BACKUPS_DIR))
+        except FileNotFoundError as e:
+            messagebox.showwarning("폴더 열기 실패", str(e), parent=self)
+
+    def _handle_restore(self, backup_path):
+        label = backup_service.format_backup_label(backup_path)
+        if not messagebox.askyesno(
+            "복원 확인",
+            f"'{label}' 시점으로 되돌리시겠습니까?\n"
+            "지금 상태는 자동으로 안전 백업된 뒤 교체됩니다.",
+            parent=self,
+        ):
+            return
+        try:
+            backup_service.restore_backup(backup_path)
+        except FileNotFoundError as e:
+            messagebox.showerror("복원 실패", str(e), parent=self)
+            return
+        messagebox.showinfo("복원 완료", "복원되었습니다. 다른 화면으로 이동하면 반영된 내용이 보입니다.", parent=self)
+        self._render_backup_list()
 
     def _toggle_visibility(self):
         self.api_key_entry.configure(show="" if self.show_var.get() else "•")
