@@ -9,17 +9,19 @@ V1 범위:
     - 기본 필드(제목/날짜/장소/주최/종류/상태/중요도)
     - Reflection, Attachment, Tag 와의 관계(relationship)
 
-V1 이후(V2~)에 추가될 예정인 필드는 일부러 지금 넣지 않았습니다.
-  (Goal 연결, Category 연결, GrowthLink, STAR 필드 등)
-  → 이유: V1에서는 "활동을 기록하고 목록/상세를 보는 것"에만 집중하고,
-     기능이 늘어날 때마다 마이그레이션 개념을 연습하듯 컬럼을 추가합니다.
-     (설계 문서에는 이미 전체 스키마가 정리되어 있으니 나중에 그대로 확장하면 됩니다.)
+V2에서 추가된 것:
+    - goal_id (Goal과의 N:1 연결. "이 활동은 어떤 목표를 위한 것인가")
+
+아직 넣지 않은 필드 (V3~V4에서 추가 예정, 설계 문서에 이미 정리되어 있음):
+    - Category 연결(자소서 분류), GrowthLink(성장 연결), STAR 4필드
+    → 이유: 기능이 실제로 구현되는 시점에 맞춰 컬럼을 추가해야
+       "왜 이 컬럼이 있는지"가 코드에서도 명확하게 유지됩니다.
 """
 
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import String, Text, Date, DateTime, Integer, Enum
+from sqlalchemy import String, Text, Date, DateTime, Integer, Enum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -78,6 +80,10 @@ class Activity(Base):
     new_roles: Mapped[str | None] = mapped_column(Text, nullable=True)
     related_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
+    # --- 목표 연결 (V2) ---
+    # 이 활동이 어떤 목표를 위해 한 것인지 (선택 사항)
+    goal_id: Mapped[int | None] = mapped_column(ForeignKey("goals.id"), nullable=True)
+
     # --- 메타 ---
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -95,6 +101,7 @@ class Activity(Base):
     tags: Mapped[list["Tag"]] = relationship(
         secondary="activity_tags", back_populates="activities"
     )
+    goal: Mapped["Goal | None"] = relationship(back_populates="activities")
 
     def __repr__(self) -> str:
         return f"<Activity id={self.id} title={self.title!r} type={self.activity_type}>"

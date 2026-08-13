@@ -40,6 +40,7 @@ class ActivityService:
         purpose: str | None = None,
         content: str | None = None,
         tag_names: list[str] | None = None,
+        goal_id: int | None = None,
     ) -> Activity:
         """새 활동을 만듭니다. 제목과 최소 정보만 있으면 저장 가능하게 해서
         '일단 빠르게 기록하고 나중에 상세 페이지에서 채워넣는' 사용 흐름을 지원합니다."""
@@ -60,6 +61,7 @@ class ActivityService:
             importance=importance,
             purpose=purpose,
             content=content,
+            goal_id=goal_id,
         )
 
         if tag_names:

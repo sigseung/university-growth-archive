@@ -16,6 +16,8 @@ from models.activity import Activity, ActivityType, ActivityStatus
 from models.reflection import Reflection
 from models.attachment import Attachment, AttachmentType
 from models.tag import Tag, activity_tags
+from models.goal import Goal, PeriodType
+from models.schedule import Schedule, ScheduleType
 
 __all__ = [
     "Base",
@@ -27,4 +29,8 @@ __all__ = [
     "AttachmentType",
     "Tag",
     "activity_tags",
+    "Goal",
+    "PeriodType",
+    "Schedule",
+    "ScheduleType",
 ]

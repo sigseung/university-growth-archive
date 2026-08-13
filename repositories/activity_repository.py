@@ -68,14 +68,31 @@ class ActivityRepository:
         return list(self.session.scalars(stmt).all())
 
     def search(self, keyword: str) -> list[Activity]:
-        """제목/내용/주최/장소에 키워드가 포함된 활동을 검색합니다.
-        (V2에서 태그/기업/기술 검색까지 확장 예정)"""
+        """키워드로 활동을 검색합니다. (V2: 태그/기업/기술 검색까지 확장)
+
+        검색 대상: 제목, 내용, 주최, 장소, 방문기업, 배운기술, 알게된직무, 태그명.
+        태그는 다대다 관계라서 join이 필요합니다. distinct()를 붙이는 이유는
+        하나의 활동에 매칭되는 태그가 여러 개면 같은 활동이 중복으로 나오기 때문입니다.
+        """
+        from models.tag import Tag, activity_tags  # 순환 import 방지를 위해 함수 내부에서 import
+
         like_pattern = f"%{keyword}%"
-        stmt = select(Activity).where(
-            Activity.title.like(like_pattern)
-            | Activity.content.like(like_pattern)
-            | Activity.organizer.like(like_pattern)
-            | Activity.location.like(like_pattern)
+        stmt = (
+            select(Activity)
+            .outerjoin(activity_tags, Activity.id == activity_tags.c.activity_id)
+            .outerjoin(Tag, Tag.id == activity_tags.c.tag_id)
+            .where(
+                Activity.title.like(like_pattern)
+                | Activity.content.like(like_pattern)
+                | Activity.organizer.like(like_pattern)
+                | Activity.location.like(like_pattern)
+                | Activity.visited_companies.like(like_pattern)
+                | Activity.new_skills.like(like_pattern)
+                | Activity.new_roles.like(like_pattern)
+                | Tag.name.like(like_pattern)
+            )
+            .distinct()
+            .order_by(Activity.date_start.desc())
         )
         return list(self.session.scalars(stmt).all())
 

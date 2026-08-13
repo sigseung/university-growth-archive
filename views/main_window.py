@@ -19,6 +19,8 @@ from views.dashboard_view import DashboardView
 from views.activity_list_view import ActivityListView
 from views.activity_detail_view import ActivityDetailView
 from views.activity_form_view import ActivityFormView
+from views.goal_view import GoalView
+from views.schedule_view import ScheduleView
 
 
 class MainWindow(ctk.CTk):
@@ -64,6 +66,10 @@ class MainWindow(ctk.CTk):
                 on_open_activity=self.open_activity_detail,
                 on_add_activity=self.open_activity_form,
             )
+        elif screen == "goals":
+            self.current_view = GoalView(self.content_frame)
+        elif screen == "schedule":
+            self.current_view = ScheduleView(self.content_frame)
         else:
             return
 

@@ -13,6 +13,7 @@ from tkinter import messagebox
 from database.db_session import get_session
 from models.activity import ActivityType, ActivityStatus
 from services.activity_service import ActivityService
+from services.goal_service import GoalService
 from utils.date_utils import parse_date_short, format_date_short
 
 
@@ -51,6 +52,12 @@ class ActivityFormView(ctk.CTkToplevel):
         self.purpose_entry = self._add_textbox(scroll, "참여 목적")
         self.content_entry = self._add_textbox(scroll, "활동 내용")
         self.tags_entry = self._add_field(scroll, "태그 (콤마로 구분, 예: AI, 반도체)")
+
+        # 목표 연결 (V2): "없음" + 등록된 목표 목록 중에서 선택
+        with get_session() as session:
+            self._goal_choices = GoalService(session).list_goals()
+        goal_labels = ["없음"] + [f"{g.title} ({g.period_label})" for g in self._goal_choices]
+        self.goal_combo = self._add_combo(scroll, "연결할 목표 (선택)", goal_labels)
 
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=(0, 16))
@@ -98,6 +105,11 @@ class ActivityFormView(ctk.CTkToplevel):
             self.content_entry.insert("1.0", a.content)
         if a.tags:
             self.tags_entry.insert(0, ", ".join(t.name for t in a.tags))
+        if a.goal_id:
+            for g in self._goal_choices:
+                if g.id == a.goal_id:
+                    self.goal_combo.set(f"{g.title} ({g.period_label})")
+                    break
 
     def _handle_save(self):
         title = self.title_entry.get().strip()
@@ -115,7 +127,16 @@ class ActivityFormView(ctk.CTkToplevel):
 
         tag_names = [t.strip() for t in self.tags_entry.get().split(",") if t.strip()]
 
+        goal_selection = self.goal_combo.get()
+        goal_id = None
+        if goal_selection != "없음":
+            for g in self._goal_choices:
+                if f"{g.title} ({g.period_label})" == goal_selection:
+                    goal_id = g.id
+                    break
+
         fields = dict(
+            goal_id=goal_id,
             title=title,
             activity_type=ActivityType(self.type_combo.get()),
             status=ActivityStatus(self.status_combo.get()),

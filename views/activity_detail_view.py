@@ -2,17 +2,19 @@
 views/activity_detail_view.py
 
 활동 하나의 상세 정보를 보여주는 화면입니다.
-V1에서는 기본정보 + Reflection 섹션까지만 구현합니다.
-(STAR, 첨부파일, 연결된 다음 행동 탭은 V3~V4에서 이 파일에 탭을 추가하는 방식으로 확장)
+V1: 기본정보 + Reflection / V2: 첨부파일 업로드 섹션 추가.
+(STAR, 연결된 다음 행동(GrowthLink) 탭은 V4에서 이 파일에 탭을 추가하는 방식으로 확장 예정)
 """
 
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 from database.db_session import get_session
 from models.reflection import Reflection
 from services.activity_service import ActivityService
+from services.attachment_service import AttachmentService
 from utils.date_utils import format_date_kr
+from utils.file_utils import open_file_with_default_app
 
 
 class ActivityDetailView(ctk.CTkFrame):
@@ -85,6 +87,7 @@ class ActivityDetailView(ctk.CTkFrame):
             self._section(self.scroll, "새롭게 배운 기술", activity.new_skills)
             self._section(self.scroll, "새롭게 알게 된 직무", activity.new_roles)
 
+            self._attachment_section(self.scroll, service)
             self._reflection_section(self.scroll, activity)
 
     def _section(self, parent, title: str, content: str | None):
@@ -96,6 +99,70 @@ class ActivityDetailView(ctk.CTkFrame):
         ctk.CTkLabel(
             parent, text=content, anchor="w", justify="left", wraplength=700
         ).pack(fill="x")
+
+    def _attachment_section(self, parent, activity_service: ActivityService):
+        header_row = ctk.CTkFrame(parent, fg_color="transparent")
+        header_row.pack(fill="x", pady=(20, 8))
+        ctk.CTkLabel(
+            header_row, text="첨부파일", font=ctk.CTkFont(size=14, weight="bold"), anchor="w"
+        ).pack(side="left")
+        ctk.CTkButton(
+            header_row, text="+ 파일 업로드", width=110, height=28,
+            command=self._handle_upload,
+        ).pack(side="right")
+
+        attachment_service = AttachmentService(activity_service.session)
+        attachments = attachment_service.list_attachments(self.activity_id)
+
+        if not attachments:
+            ctk.CTkLabel(
+                parent, text="첨부된 파일이 없습니다.", text_color=("gray50", "gray60"), anchor="w"
+            ).pack(fill="x", pady=(0, 8))
+            return
+
+        for att in attachments:
+            row = ctk.CTkFrame(parent, corner_radius=8)
+            row.pack(fill="x", pady=3)
+
+            ctk.CTkLabel(
+                row, text=f"[{att.file_type.value}]", width=60, font=ctk.CTkFont(size=11, weight="bold"),
+            ).pack(side="left", padx=(12, 4), pady=8)
+            ctk.CTkLabel(
+                row, text=att.original_name or "파일", anchor="w",
+            ).pack(side="left", fill="x", expand=True, pady=8)
+            ctk.CTkButton(
+                row, text="열기", width=50, height=26, fg_color="transparent", border_width=1,
+                command=lambda p=att.file_path: self._handle_open_attachment(p),
+            ).pack(side="right", padx=(4, 8))
+            ctk.CTkButton(
+                row, text="삭제", width=50, height=26, fg_color="#EF4444", hover_color="#DC2626",
+                command=lambda aid=att.id: self._handle_delete_attachment(aid),
+            ).pack(side="right")
+
+    def _handle_upload(self):
+        file_path = filedialog.askopenfilename(title="첨부할 파일 선택")
+        if not file_path:
+            return
+        try:
+            with get_session() as session:
+                AttachmentService(session).upload_attachment(self.activity_id, file_path)
+        except FileNotFoundError as e:
+            messagebox.showwarning("업로드 실패", str(e), parent=self)
+            return
+        self.refresh()
+
+    def _handle_open_attachment(self, file_path: str):
+        try:
+            open_file_with_default_app(file_path)
+        except FileNotFoundError as e:
+            messagebox.showwarning("파일 열기 실패", str(e), parent=self)
+
+    def _handle_delete_attachment(self, attachment_id: int):
+        if not messagebox.askyesno("삭제 확인", "이 첨부파일 기록을 삭제하시겠습니까?"):
+            return
+        with get_session() as session:
+            AttachmentService(session).delete_attachment(attachment_id)
+        self.refresh()
 
     def _reflection_section(self, parent, activity):
         ctk.CTkLabel(
