@@ -1,5 +1,7 @@
 # University Growth Archive (UGA)
 
+[![Test](https://github.com/sigseung/university-growth-archive/actions/workflows/tests.yml/badge.svg)](https://github.com/sigseung/university-growth-archive/actions/workflows/tests.yml)
+
 > 대학생활 4년을 기록하고, AI로 성장 관리·자기소개서·면접·커리어 관리까지
 > 연결하는 "대학생 성장 운영체제". 단순 CRUD 앱이 아니라, 활동 간의
 > 인과관계를 기록해 성장 흐름을 시각화하는 데 초점을 맞췄습니다.
@@ -50,7 +52,7 @@ OpenAI API · pytest · PyInstaller
 
 **아키텍처**: View → 이벤트 핸들러 → Service → Repository → Model 계층으로 분리해서,
 DB 쿼리(Repository)와 비즈니스 규칙(Service)이 섞이지 않도록 했습니다.
-자세한 설계 배경은 `UGA_설계문서_V1.md`에 정리되어 있습니다.
+핵심 엔티티와 설계 선택의 이유는 [아키텍처 문서](docs/architecture.md)에 정리했습니다.
 
 ## 실행 방법
 
@@ -95,6 +97,9 @@ AI 응답 파싱, 백업/복원 등)은 pytest로 검증되어 있습니다.
 pip install -r requirements-dev.txt
 pytest -v
 ```
+
+GitHub에서는 `main` 브랜치 푸시와 Pull Request마다 Python 3.11·3.12 환경에서
+동일한 테스트를 자동 실행합니다. 배지가 실패하면 병합 전에 원인을 확인합니다.
 
 ## 프로젝트 구조
 
